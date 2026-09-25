@@ -7,6 +7,8 @@ export default function Nav({ activeOrgId, onClearOrg }) {
   const location = useLocation();
 
   function signOut() {
+    sessionStorage.removeItem("activeOrgId");
+    onClearOrg();
     instance.logoutRedirect({ postLogoutRedirectUri: window.location.origin });
   }
 
