@@ -22,10 +22,44 @@ azure-user-manage/
 
 ---
 
+## Two app registrations — why they are different
+
+This project requires **two separate app registrations** in your External ID tenant. They serve different roles and must NOT share a client ID.
+
+```
+┌─────────────────────────────┐        ┌─────────────────────────────┐
+│   Registration 1: SaaS SPA  │        │   Registration 2: SaaS API  │
+│   (React frontend)          │        │   (Node.js backend)         │
+├─────────────────────────────┤        ├─────────────────────────────┤
+│ Type:    Public client       │        │ Type:    Web / API           │
+│ Platform: Single-page app   │        │ Platform: none (API only)   │
+│ Secret:  NONE — browser     │        │ Secret:  not needed either  │
+│          apps cannot keep   │        │          (validates tokens   │
+│          secrets safely      │        │          using public JWKS) │
+│                             │        │                             │
+│ Redirect URI:               │        │ Expose an API:              │
+│   http://localhost:3000     │        │   api://<id>/SaaS.Access    │
+│                             │        │                             │
+│ Env variable:               │        │ Env variables:              │
+│   VITE_ENTRA_CLIENT_ID      │        │   ENTRA_API_CLIENT_ID       │
+│                             │        │   VITE_API_SCOPE            │
+└─────────────────────────────┘        └─────────────────────────────┘
+         signs the user in                    protects the API endpoints
+         gets an access token   ──────▶       validates the access token
+```
+
+**Flow in plain words:**
+1. React SPA (Registration 1) signs the user in and requests an access token **for** Registration 2's scope (`SaaS.Access`).
+2. Node.js API (Registration 2) receives the token and validates that its `aud` claim equals its own client ID and its `scp` claim contains `SaaS.Access`.
+3. If valid, the API resolves the SaaS tenant and serves the request.
+
+> Sharing one registration for both would mean the SPA's redirect URIs would be set on the API registration, and the API's `aud` claim would equal the SPA's client ID — both are wrong and insecure.
+
+---
+
 ## Environment variable setup guide
 
-Both `frontend/.env.development` and `backend/.env.development` need values from the
-**Microsoft Entra admin center** (`https://entra.microsoft.com`). Follow these steps in order.
+All values come from the **Microsoft Entra admin center** (`https://entra.microsoft.com`). Follow these steps in order.
 
 ---
 
