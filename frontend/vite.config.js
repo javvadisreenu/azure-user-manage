@@ -7,6 +7,7 @@ export default defineConfig({
   // Read .env files from the repo root instead of frontend/
   envDir: resolve(__dirname, ".."),
   server: {
-    port: 3000,
+    port: 3001,
+    strictPort: true,
   },
 });

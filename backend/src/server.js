@@ -1,8 +1,8 @@
-// Load shared .env from the repo root (one level above backend/)
-import { config } from "dotenv";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../../..", ".env.development") });
+// Load env vars BEFORE any module that reads process.env at import time.
+// ES module imports are hoisted, so dotenv.config() inline here would run
+// AFTER authenticate.js has already read process.env. Importing env.js as
+// the first import guarantees it runs first.
+import "./env.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";

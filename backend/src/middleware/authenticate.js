@@ -11,13 +11,19 @@ const tenantId = process.env.ENTRA_TENANT_ID;
 const apiClientId = process.env.ENTRA_API_CLIENT_ID;
 const expectedScope = process.env.ENTRA_EXPECTED_SCOPE;
 
-const authority = `https://${tenantSubdomain}.ciamlogin.com/${tenantId}/v2.0`;
+// Entra External ID (CIAM) uses the tenant ID as the issuer subdomain,
+// not the friendly tenant name, so the issuer in every token is:
+//   https://<tenantId>.ciamlogin.com/<tenantId>/v2.0
+const issuer = `https://${tenantId}.ciamlogin.com/${tenantId}/v2.0`;
+
+// JWKS endpoint uses the friendly subdomain and has no /v2.0 prefix
+const jwksUri = `https://${tenantSubdomain}.ciamlogin.com/${tenantId}/discovery/v2.0/keys`;
 
 // Lazily created so env vars are read at request time in tests
 let _jwks;
 function getJwks() {
   if (!_jwks) {
-    _jwks = createRemoteJWKSet(new URL(`${authority}/discovery/v2.0/keys`));
+    _jwks = createRemoteJWKSet(new URL(jwksUri));
   }
   return _jwks;
 }
@@ -32,7 +38,7 @@ export async function authenticate(req, res, next) {
 
   try {
     const { payload } = await jwtVerify(token, getJwks(), {
-      issuer: authority,
+      issuer,
       audience: apiClientId,
     });
 
