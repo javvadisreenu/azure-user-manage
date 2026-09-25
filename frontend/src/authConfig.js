@@ -14,8 +14,8 @@ export const msalConfig = {
     clientId: import.meta.env.VITE_ENTRA_CLIENT_ID,
     authority: `https://${authorityHost}/`,
     knownAuthorities: [authorityHost],
-    redirectUri: window.location.origin,
-    postLogoutRedirectUri: window.location.origin,
+    redirectUri: window.location.origin + "/",
+    postLogoutRedirectUri: window.location.origin + "/",
   },
   cache: {
     cacheLocation: "sessionStorage",
