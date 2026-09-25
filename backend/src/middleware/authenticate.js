@@ -1,6 +1,12 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
-const tenantSubdomain = process.env.ENTRA_TENANT_SUBDOMAIN;
+// Accept either "fpass" or "fpass.onmicrosoft.com" — normalise to the bare subdomain
+const rawSubdomain = process.env.ENTRA_TENANT_SUBDOMAIN || "";
+const tenantSubdomain = rawSubdomain
+  .replace(/\.onmicrosoft\.com$/i, "")
+  .replace(/\.ciamlogin\.com$/i, "")
+  .trim();
+
 const tenantId = process.env.ENTRA_TENANT_ID;
 const apiClientId = process.env.ENTRA_API_CLIENT_ID;
 const expectedScope = process.env.ENTRA_EXPECTED_SCOPE;

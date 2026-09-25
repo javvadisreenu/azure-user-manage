@@ -1,10 +1,19 @@
 import { LogLevel } from "@azure/msal-browser";
 
+// Accept either "fpass" or "fpass.onmicrosoft.com" — normalise to the bare subdomain
+const rawSubdomain = import.meta.env.VITE_ENTRA_TENANT_SUBDOMAIN || "";
+const tenantSubdomain = rawSubdomain
+  .replace(/\.onmicrosoft\.com$/i, "")
+  .replace(/\.ciamlogin\.com$/i, "")
+  .trim();
+
+const authorityHost = `${tenantSubdomain}.ciamlogin.com`;
+
 export const msalConfig = {
   auth: {
     clientId: import.meta.env.VITE_ENTRA_CLIENT_ID,
-    authority: `https://${import.meta.env.VITE_ENTRA_TENANT_SUBDOMAIN}.ciamlogin.com/`,
-    knownAuthorities: [`${import.meta.env.VITE_ENTRA_TENANT_SUBDOMAIN}.ciamlogin.com`],
+    authority: `https://${authorityHost}/`,
+    knownAuthorities: [authorityHost],
     redirectUri: window.location.origin,
     postLogoutRedirectUri: window.location.origin,
   },
