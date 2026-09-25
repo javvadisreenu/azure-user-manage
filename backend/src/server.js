@@ -1,4 +1,8 @@
-import "dotenv/config";
+// Load shared .env from the repo root (one level above backend/)
+import { config } from "dotenv";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../../..", ".env.development") });
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
