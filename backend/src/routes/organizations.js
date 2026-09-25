@@ -28,13 +28,29 @@ router.get("/", requireRole("PlatformAdmin"), (req, res) => {
   res.json(orgRepo.list());
 });
 
-// POST /api/organizations — PlatformAdmin only: create an organization
+// POST /api/organizations — PlatformAdmin only: create an organization.
+// The creator is automatically added as a TenantAdmin member so they can
+// switch into and manage the new org right away.
 router.post("/", requireRole("PlatformAdmin"), (req, res) => {
   const { name, code } = req.body;
   if (!name || !code) return res.status(400).json({ error: "name and code are required" });
 
+  if (orgRepo.findByCode(code)) {
+    return res.status(409).json({ error: "code_taken" });
+  }
+
   const organizationId = uuidv4();
   orgRepo.create({ organizationId, code, name, status: "Active" });
+
+  // Add the creator as a TenantAdmin of the new org
+  const membershipId = uuidv4();
+  membershipRepo.create({
+    membershipId,
+    organizationId,
+    userId: req.tenant.userId,
+    status: "Active",
+  });
+  membershipRepo.assignRole(uuidv4(), membershipId, "TenantAdmin");
 
   auditRepo.log({
     organizationId,
@@ -45,7 +61,7 @@ router.post("/", requireRole("PlatformAdmin"), (req, res) => {
     details: { name, code },
   });
 
-  res.status(201).json({ organizationId });
+  res.status(201).json({ organizationId, membershipId });
 });
 
 // GET /api/organizations/:orgId — TenantAdmin or member of that org

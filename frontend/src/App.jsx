@@ -18,7 +18,13 @@ export default function App() {
   const [activeOrgId, setActiveOrgId] = useState(() => sessionStorage.getItem("activeOrgId"));
 
   function selectOrg(orgId) {
-    sessionStorage.setItem("activeOrgId", orgId);
+    if (orgId) {
+      sessionStorage.setItem("activeOrgId", orgId);
+    } else {
+      // Clearing the org (Switch Org) — remove the key entirely so a reload
+      // doesn't read back the literal string "null".
+      sessionStorage.removeItem("activeOrgId");
+    }
     setActiveOrgId(orgId);
   }
 
