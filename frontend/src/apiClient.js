@@ -32,3 +32,7 @@ export function deleteApi(msal, account, path, orgId) {
 export function patchApi(msal, account, path, data, orgId) {
   return callApi(msal, account, "PATCH", path, data, orgId);
 }
+
+export function putApi(msal, account, path, data, orgId) {
+  return callApi(msal, account, "PUT", path, data, orgId);
+}

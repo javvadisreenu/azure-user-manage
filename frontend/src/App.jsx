@@ -9,6 +9,9 @@ import MembersPage from "./pages/MembersPage";
 import InvitationsPage from "./pages/InvitationsPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
 import AuditPage from "./pages/AuditPage";
+import ProfilePage from "./pages/ProfilePage";
+import OrganizationsPage from "./pages/OrganizationsPage";
+import UsersPage from "./pages/UsersPage";
 
 export default function App() {
   const isAuthenticated = useIsAuthenticated();
@@ -48,6 +51,15 @@ export default function App() {
         } />
         <Route path="/audit" element={
           activeOrgId ? <AuditPage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
+        } />
+        <Route path="/profile" element={
+          activeOrgId ? <ProfilePage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
+        } />
+        <Route path="/organizations" element={
+          activeOrgId ? <OrganizationsPage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
+        } />
+        <Route path="/users" element={
+          activeOrgId ? <UsersPage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
         } />
         <Route path="/accept-invite" element={<AcceptInvitePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

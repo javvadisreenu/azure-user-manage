@@ -50,8 +50,15 @@ export default function OrgSelector({ onSelect }) {
   }
 
   if (orgs.length === 1) {
-    onSelect(orgs[0].organizationId);
-    return null;
+    // Defer to an effect-like microtask so we don't call a parent setState
+    // during this component's render.
+    Promise.resolve().then(() => onSelect(orgs[0].organizationId));
+    return (
+      <div className="auth-page">
+        <div className="spinner" />
+        <p>Entering {orgs[0].name}…</p>
+      </div>
+    );
   }
 
   return (

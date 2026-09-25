@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useMsal } from "@azure/msal-react";
-import { getApi, postApi, patchApi, deleteApi } from "../apiClient";
+import { getApi, postApi, patchApi, putApi, deleteApi } from "../apiClient";
 
 export function useApi(activeOrgId) {
   const { instance, accounts } = useMsal();
@@ -36,6 +36,7 @@ export function useApi(activeOrgId) {
     get: (path) => request((msal, acc, org) => getApi(msal, acc, path, org)),
     post: (path, data) => request((msal, acc, org) => postApi(msal, acc, path, data, org)),
     patch: (path, data) => request((msal, acc, org) => patchApi(msal, acc, path, data, org)),
+    put: (path, data) => request((msal, acc, org) => putApi(msal, acc, path, data, org)),
     del: (path) => request((msal, acc, org) => deleteApi(msal, acc, path, org)),
   };
 }

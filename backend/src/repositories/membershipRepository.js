@@ -1,4 +1,5 @@
 import { getDb } from "../data/db.js";
+import { v4 as uuidv4 } from "uuid";
 
 export function findActiveByUserId(userId) {
   return getDb()
@@ -49,6 +50,28 @@ export function assignRole(membershipRoleId, membershipId, roleCode) {
       "INSERT OR IGNORE INTO MembershipRoles (MembershipRoleId, MembershipId, RoleId) VALUES (?, ?, ?)"
     )
     .run(membershipRoleId, membershipId, role.RoleId);
+}
+
+// Replace all of a membership's roles with the given set, atomically.
+export function replaceRoles(membershipId, roleCodes) {
+  const db = getDb();
+  // Validate every role first so we fail before deleting anything
+  for (const code of roleCodes) {
+    const role = db.prepare("SELECT RoleId FROM Roles WHERE RoleCode = ?").get(code);
+    if (!role) throw new Error(`Unknown role: ${code}`);
+  }
+  db.transaction(() => {
+    db.prepare("DELETE FROM MembershipRoles WHERE MembershipId = ?").run(membershipId);
+    for (const code of roleCodes) {
+      assignRole(uuidv4(), membershipId, code);
+    }
+  })();
+}
+
+export function findById(membershipId) {
+  return getDb()
+    .prepare("SELECT * FROM Memberships WHERE MembershipId = ?")
+    .get(membershipId);
 }
 
 export function listByOrganization(organizationId) {

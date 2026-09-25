@@ -16,6 +16,7 @@ import meRouter from "./routes/me.js";
 import organizationsRouter from "./routes/organizations.js";
 import invitationsRouter from "./routes/invitations.js";
 import tenantSelectorRouter from "./routes/tenantSelector.js";
+import usersRouter from "./routes/users.js";
 
 runMigrations();
 
@@ -49,6 +50,7 @@ app.use("/api", authenticate, tenantContext);
 app.use("/api/me", meRouter);
 app.use("/api/organizations", organizationsRouter);
 app.use("/api/invitations", invitationsRouter);
+app.use("/api/users", usersRouter);
 
 // Catch-all 404
 app.use((_, res) => res.status(404).json({ error: "not_found" }));

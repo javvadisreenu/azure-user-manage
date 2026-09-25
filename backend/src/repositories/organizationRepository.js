@@ -23,3 +23,15 @@ export function updateStatus(organizationId, status) {
     .prepare("UPDATE Organizations SET Status = ? WHERE OrganizationId = ?")
     .run(status, organizationId);
 }
+
+export function updateName(organizationId, name) {
+  getDb()
+    .prepare("UPDATE Organizations SET Name = ? WHERE OrganizationId = ?")
+    .run(name, organizationId);
+}
+
+export function findByCode(code) {
+  return getDb()
+    .prepare("SELECT * FROM Organizations WHERE Code = ?")
+    .get(code);
+}
