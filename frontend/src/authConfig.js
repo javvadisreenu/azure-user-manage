@@ -31,3 +31,8 @@ export const msalConfig = {
 export const loginRequest = {
   scopes: ["openid", "profile", import.meta.env.VITE_API_SCOPE],
 };
+
+export const signUpRequest = {
+  scopes: ["openid", "profile", import.meta.env.VITE_API_SCOPE],
+  prompt: "create",
+};
