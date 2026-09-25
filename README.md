@@ -2,6 +2,8 @@
 
 React 18 + Node.js/Express multi-tenant SaaS starter with Microsoft Entra External ID authentication.
 
+Help : https://claude.ai/artifact/86UDAKETt9gJTBCkKx6WuK
+
 ## Stack
 
 | Layer | Technology |
