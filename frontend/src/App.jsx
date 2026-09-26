@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useIsAuthenticated, useMsal } from "@azure/msal-react";
-import Nav from "./components/Nav";
-import LandingPage from "./pages/LandingPage";
-import OrgSelector from "./pages/OrgSelector";
-import Dashboard from "./pages/Dashboard";
-import MembersPage from "./pages/MembersPage";
-import InvitationsPage from "./pages/InvitationsPage";
-import AcceptInvitePage from "./pages/AcceptInvitePage";
-import AuditPage from "./pages/AuditPage";
-import ProfilePage from "./pages/ProfilePage";
-import OrganizationsPage from "./pages/OrganizationsPage";
-import UsersPage from "./pages/UsersPage";
+import { useIsAuthenticated } from "@azure/msal-react";
+import { AppShell } from "@/components/layout/AppShell";
+import LandingPage from "@/pages/LandingPage";
+import OrgSelector from "@/pages/OrgSelector";
+import Dashboard from "@/pages/Dashboard";
+import MembersPage from "@/pages/MembersPage";
+import InvitationsPage from "@/pages/InvitationsPage";
+import AcceptInvitePage from "@/pages/AcceptInvitePage";
+import AuditPage from "@/pages/AuditPage";
+import ProfilePage from "@/pages/ProfilePage";
+import OrganizationsPage from "@/pages/OrganizationsPage";
+import UsersPage from "@/pages/UsersPage";
 
 export default function App() {
   const isAuthenticated = useIsAuthenticated();
@@ -37,39 +37,30 @@ export default function App() {
     );
   }
 
-  return (
-    <>
-      <Nav activeOrgId={activeOrgId} onClearOrg={() => selectOrg(null)} />
+  // Authenticated but no organization selected yet — show the picker.
+  if (!activeOrgId) {
+    return (
       <Routes>
-        <Route path="/" element={
-          activeOrgId
-            ? <Navigate to="/dashboard" replace />
-            : <OrgSelector onSelect={selectOrg} />
-        } />
-        <Route path="/dashboard" element={
-          activeOrgId ? <Dashboard activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
-        } />
-        <Route path="/members" element={
-          activeOrgId ? <MembersPage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
-        } />
-        <Route path="/invitations" element={
-          activeOrgId ? <InvitationsPage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
-        } />
-        <Route path="/audit" element={
-          activeOrgId ? <AuditPage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
-        } />
-        <Route path="/profile" element={
-          activeOrgId ? <ProfilePage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
-        } />
-        <Route path="/organizations" element={
-          activeOrgId ? <OrganizationsPage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
-        } />
-        <Route path="/users" element={
-          activeOrgId ? <UsersPage activeOrgId={activeOrgId} /> : <Navigate to="/" replace />
-        } />
         <Route path="/accept-invite" element={<AcceptInvitePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<OrgSelector onSelect={selectOrg} />} />
       </Routes>
-    </>
+    );
+  }
+
+  return (
+    <AppShell activeOrgId={activeOrgId} onSelectOrg={selectOrg} onClearOrg={() => selectOrg(null)}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard activeOrgId={activeOrgId} />} />
+        <Route path="/members" element={<MembersPage activeOrgId={activeOrgId} />} />
+        <Route path="/invitations" element={<InvitationsPage activeOrgId={activeOrgId} />} />
+        <Route path="/audit" element={<AuditPage activeOrgId={activeOrgId} />} />
+        <Route path="/profile" element={<ProfilePage activeOrgId={activeOrgId} />} />
+        <Route path="/organizations" element={<OrganizationsPage activeOrgId={activeOrgId} />} />
+        <Route path="/users" element={<UsersPage activeOrgId={activeOrgId} />} />
+        <Route path="/accept-invite" element={<AcceptInvitePage />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </AppShell>
   );
 }

@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { useApi } from "../hooks/useApi";
-
-const STATUS_BADGE = {
-  Active: "badge-green",
-  Suspended: "badge-yellow",
-  Archived: "badge-red",
-};
+import { useApi } from "@/hooks/useApi";
+import { PageHeader } from "@/components/PageHeader";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { StatusBadge } from "@/lib/roles";
+import { Building2, Loader2, ShieldAlert } from "lucide-react";
 
 export default function OrganizationsPage({ activeOrgId }) {
   const { get, post, patch, loading, error } = useApi(activeOrgId);
@@ -16,7 +20,9 @@ export default function OrganizationsPage({ activeOrgId }) {
   const [busy, setBusy] = useState(false);
 
   const load = () => get("/api/organizations").then(setOrgs).catch(() => {});
-  useEffect(() => { load(); }, [activeOrgId]);
+  useEffect(() => {
+    load();
+  }, [activeOrgId]);
 
   async function createOrg(e) {
     e.preventDefault();
@@ -55,26 +61,40 @@ export default function OrganizationsPage({ activeOrgId }) {
   }
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="page-header">
-          <div>
-            <div className="page-title">Organizations</div>
-            <div className="page-subtitle">Create and manage tenant organizations</div>
-          </div>
-        </div>
+    <div>
+      <PageHeader
+        title="Organizations"
+        description="Create and manage every tenant on the platform"
+      />
 
-        {actionError && <div className="alert alert-error">{actionError}</div>}
-        {error && <div className="alert alert-error">{error}</div>}
+      {actionError && (
+        <Alert variant="destructive" className="mb-4">
+          <ShieldAlert />
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <ShieldAlert />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1.5rem", alignItems: "start" }}>
-          {/* Create form */}
-          <div className="card">
-            <div className="section-title">Create organization</div>
-            <form onSubmit={createOrg}>
-              <div className="form-group">
-                <label>Name</label>
-                <input
+      <div className="grid items-start gap-6 lg:grid-cols-[380px_1fr]">
+        {/* Create form */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="text-primary size-4.5" /> Create organization
+            </CardTitle>
+            <CardDescription>You'll be added as its TenantAdmin automatically.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={createOrg} className="grid gap-5">
+              <div className="grid gap-2">
+                <Label htmlFor="org-name">Name</Label>
+                <Input
+                  id="org-name"
                   type="text"
                   required
                   value={form.name}
@@ -82,66 +102,89 @@ export default function OrganizationsPage({ activeOrgId }) {
                   placeholder="Acme Corp"
                 />
               </div>
-              <div className="form-group">
-                <label>Code (slug)</label>
-                <input
+              <div className="grid gap-2">
+                <Label htmlFor="org-code">Code (slug)</Label>
+                <Input
+                  id="org-code"
                   type="text"
                   required
                   value={form.code}
                   onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
                   placeholder="acme-corp"
+                  className="font-mono"
                 />
               </div>
-              <button className="btn btn-primary" type="submit" disabled={busy}>
+              <Button type="submit" disabled={busy}>
+                {busy && <Loader2 className="animate-spin" />}
                 {busy ? "Creating…" : "Create organization"}
-              </button>
-              {created && (
-                <div className="alert alert-success" style={{ marginTop: "1rem" }}>
-                  Created <strong>{created}</strong>.
-                </div>
-              )}
+              </Button>
             </form>
-          </div>
+            {created && (
+              <Alert variant="success" className="mt-4">
+                <AlertDescription>
+                  Created <span className="font-medium">{created}</span>.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Org list */}
-          <div className="card">
-            <div className="section-title">All organizations</div>
-            {loading && <div className="spinner" />}
-            <div className="table-wrap">
-              <table>
+        {/* Org list */}
+        <Card className="gap-0 py-0">
+          <div className="flex items-center justify-between border-b px-6 py-4">
+            <h2 className="text-sm font-semibold">All organizations</h2>
+            {orgs.length > 0 && <Badge variant="secondary">{orgs.length}</Badge>}
+          </div>
+          {loading && orgs.length === 0 ? (
+            <div className="space-y-3 p-6">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : orgs.length === 0 ? (
+            <div className="text-muted-foreground flex flex-col items-center gap-2 px-6 py-16 text-center">
+              <Building2 className="size-8 opacity-40" />
+              <p className="text-sm font-medium">No organizations yet</p>
+              <p className="text-xs">Create your first tenant with the form.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Code</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                  <tr className="text-muted-foreground border-b text-xs tracking-wide uppercase">
+                    <th className="px-4 py-3 text-left font-medium">Organization</th>
+                    <th className="px-4 py-3 text-left font-medium">Status</th>
+                    <th className="px-4 py-3 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orgs.length === 0 && !loading && (
-                    <tr><td colSpan={4} style={{ color: "var(--color-muted)", textAlign: "center" }}>No organizations</td></tr>
-                  )}
                   {orgs.map((o) => (
-                    <tr key={o.OrganizationId}>
-                      <td style={{ fontWeight: 500 }}>{o.Name}</td>
-                      <td style={{ fontFamily: "monospace", fontSize: ".8rem" }}>{o.Code}</td>
-                      <td><span className={`badge ${STATUS_BADGE[o.Status] || "badge-yellow"}`}>{o.Status}</span></td>
-                      <td>
-                        <div style={{ display: "flex", gap: ".4rem", flexWrap: "wrap" }}>
+                    <tr key={o.OrganizationId} className="hover:bg-muted/50 border-b transition-colors last:border-0">
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{o.Name}</p>
+                        <p className="text-muted-foreground font-mono text-xs">{o.Code}</p>
+                      </td>
+                      <td className="px-4 py-3"><StatusBadge status={o.Status} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-1.5">
                           {o.Status === "Active" && (
-                            <button className="btn btn-secondary btn-sm" onClick={() => setStatus(o.OrganizationId, "Suspended")}>
+                            <Button variant="outline" size="sm" onClick={() => setStatus(o.OrganizationId, "Suspended")}>
                               Suspend
-                            </button>
+                            </Button>
                           )}
                           {o.Status === "Suspended" && (
-                            <button className="btn btn-primary btn-sm" onClick={() => setStatus(o.OrganizationId, "Active")}>
+                            <Button size="sm" onClick={() => setStatus(o.OrganizationId, "Active")}>
                               Activate
-                            </button>
+                            </Button>
                           )}
                           {o.Status !== "Archived" && (
-                            <button className="btn btn-danger btn-sm" onClick={() => setStatus(o.OrganizationId, "Archived")}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => setStatus(o.OrganizationId, "Archived")}
+                            >
                               Archive
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </td>
@@ -150,8 +193,8 @@ export default function OrganizationsPage({ activeOrgId }) {
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
+          )}
+        </Card>
       </div>
     </div>
   );

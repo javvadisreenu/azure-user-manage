@@ -296,6 +296,8 @@ Opens at `http://localhost:3001` (port is pinned with `strictPort: true`).
 
 ## 14. Bootstrap first organization
 
+> **Note:** Since auto-provisioning, the **first user to sign in** becomes PlatformAdmin automatically (when the platform has no PlatformAdmin yet). The manual SQLite step below is only needed if you want to grant PlatformAdmin to a *different* user.
+
 After first sign-in, your identity exists in Entra but has no SaaS membership. Add one directly in SQLite:
 
 ```bash
@@ -354,22 +356,29 @@ azure-user-manage/
 │   │       └── AuditPage.jsx      Audit log viewer
 │   └── vite.config.js         Vite config (port 3001, strictPort)
 │
-├── backend/                  Express API
+├── backend/                  Express API (TypeScript)
 │   ├── src/
-│   │   ├── server.js           Express app setup + routes
+│   │   ├── server.ts            Entrypoint: env, migrations, listen
+│   │   ├── app.ts               Express app factory (middleware + routes)
+│   │   ├── config/
+│   │   │   └── env.ts           dotenv loader (must be imported first)
+│   │   ├── db/
+│   │   │   ├── client.ts        better-sqlite3 connection + query helpers
+│   │   │   └── migrate.ts       Schema migrations
+│   │   ├── types.ts             Domain types + Express request augmentation
 │   │   ├── middleware/
-│   │   │   ├── authenticate.js   JWT validation (jose + JWKS)
-│   │   │   └── tenantContext.js  Resolves SaaS tenant from token
+│   │   │   ├── authenticate.ts    JWT validation (jose + JWKS)
+│   │   │   └── tenantContext.ts   Resolves SaaS tenant from token
 │   │   ├── routes/
-│   │   │   ├── me.js             /api/me
-│   │   │   ├── organizations.js  /api/organizations
-│   │   │   ├── invitations.js    /api/invitations
-│   │   │   └── tenantSelector.js /api/tenant-selector
-│   │   ├── repositories/        SQLite data access
-│   │   ├── services/            Business logic
-│   │   └── data/
-│   │       ├── db.js             Database connection
-│   │       └── migrate.js        Schema migrations
+│   │   │   ├── me.ts              /api/me
+│   │   │   ├── organizations.ts   /api/organizations
+│   │   │   ├── invitations.ts     /api/invitations (create/list/revoke)
+│   │   │   ├── invitationAccept.ts /api/invitations/accept (public)
+│   │   │   ├── users.ts           /api/users
+│   │   │   └── tenantSelector.ts  /api/tenant-selector (auto-provision)
+│   │   ├── repositories/          SQLite data access
+│   │   └── services/              Business logic
+│   ├── tsconfig.json
 │   └── saas.db                 SQLite database (auto-created)
 │
 └── database/
@@ -550,9 +559,9 @@ taskkill /F /PID <pid>
 
 ### Backend not reading .env.development
 
-**Cause:** The dotenv path in `server.js` must point to the repo root (two directories up from `backend/src/server.js`).
+**Cause:** The backend loads `.env.development` from the repo root via `src/config/env.ts`, which must be the **first import** in `src/server.ts` (ES module imports are hoisted, so a later dotenv call would run after middleware already read `process.env`).
 
-**Fix:** The path should be `resolve(dirname(...), "../..", ".env.development")` — using `../..` (2 levels), not `../../..` (3 levels).
+**Fix:** The loader walks up from its own directory until it finds `.env.development`, so it works both under `tsx` (src) and the compiled `dist/` output. Set `ENV_FILE` to override the file name.
 
 ---
 
@@ -560,6 +569,7 @@ taskkill /F /PID <pid>
 
 - **Token validation:** The backend validates JWTs using `jose` with JWKS fetched from Entra External ID. Tokens are verified for issuer, audience, and scope.
 - **Tenant isolation:** Every data operation is scoped to an `OrganizationId` resolved server-side from the token's `issuer + subject` claims — never from the email alone.
+- **PlatformAdmin is bootstrap-only:** The role is granted exactly once (to the first auto-provisioned user when no PlatformAdmin exists) and can never be granted from a tenant-scoped endpoint — invitations, member adds, and role edits all reject it.
 - **No client secrets:** The React SPA is a public client. No client secret exists in the browser bundle. The backend doesn't need a secret either — it validates tokens using public signing keys.
 - **Invitation security:** Invitation tokens are stored as SHA-256 hashes. The raw token is returned only once at creation time.
 - **Rate limiting:** The Express API enforces 200 requests per minute per IP.

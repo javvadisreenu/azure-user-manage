@@ -1,5 +1,23 @@
 import { useEffect, useState } from "react";
-import { useApi } from "../hooks/useApi";
+import { useApi } from "@/hooks/useApi";
+import { PageHeader } from "@/components/PageHeader";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Search, ShieldAlert, UserPlus, Users } from "lucide-react";
 
 const ROLES = ["TenantAdmin", "Manager", "User", "ReadOnly"];
 
@@ -10,7 +28,7 @@ export default function UsersPage({ activeOrgId }) {
   const [orgs, setOrgs] = useState([]);
   const [actionError, setActionError] = useState(null);
   const [actionOk, setActionOk] = useState(null);
-  const [assign, setAssign] = useState(null); // { userId, orgId, roleCode }
+  const [assign, setAssign] = useState(null); // { userId, email, orgId, roleCode }
 
   const loadUsers = (q = "") => {
     const path = q ? `/api/users?search=${encodeURIComponent(q)}` : "/api/users";
@@ -30,11 +48,19 @@ export default function UsersPage({ activeOrgId }) {
   function startAssign(user) {
     setActionError(null);
     setActionOk(null);
-    setAssign({ userId: user.userId, email: user.primaryEmail, orgId: orgs[0]?.OrganizationId || "", roleCode: "User" });
+    setAssign({
+      userId: user.userId,
+      email: user.primaryEmail,
+      orgId: orgs[0]?.OrganizationId || "",
+      roleCode: "User",
+    });
   }
 
   async function submitAssign() {
-    if (!assign.orgId) { setActionError("Select an organization."); return; }
+    if (!assign.orgId) {
+      setActionError("Select an organization.");
+      return;
+    }
     setActionError(null);
     try {
       await post(`/api/organizations/${assign.orgId}/members`, {
@@ -52,106 +78,153 @@ export default function UsersPage({ activeOrgId }) {
   }
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="page-header">
-          <div>
-            <div className="page-title">User Directory</div>
-            <div className="page-subtitle">All users across every organization</div>
-          </div>
-        </div>
+    <div>
+      <PageHeader
+        title="User Directory"
+        description="All users across every organization on the platform"
+      />
 
-        {actionError && <div className="alert alert-error">{actionError}</div>}
-        {actionOk && <div className="alert alert-success">{actionOk}</div>}
-        {error && <div className="alert alert-error">{error}</div>}
+      {actionError && (
+        <Alert variant="destructive" className="mb-4">
+          <ShieldAlert />
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+      {actionOk && (
+        <Alert variant="success" className="mb-4">
+          <AlertDescription>{actionOk}</AlertDescription>
+        </Alert>
+      )}
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <ShieldAlert />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        <div className="card" style={{ marginBottom: "1rem" }}>
-          <form onSubmit={submitSearch} style={{ display: "flex", gap: ".75rem" }}>
-            <input
+      <Card className="mb-6 gap-0 py-0">
+        <form onSubmit={submitSearch} className="flex gap-2.5 p-4">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name or email…"
-              style={{ flex: 1 }}
+              className="pl-9"
             />
-            <button className="btn btn-primary" type="submit">Search</button>
-            {search && (
-              <button className="btn btn-secondary" type="button" onClick={() => { setSearch(""); loadUsers(""); }}>
-                Clear
-              </button>
-            )}
-          </form>
-        </div>
+          </div>
+          <Button type="submit">Search</Button>
+          {search && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSearch("");
+                loadUsers("");
+              }}
+            >
+              Clear
+            </Button>
+          )}
+        </form>
+      </Card>
 
-        {loading && <div className="spinner" />}
-
-        <div className="card">
-          <div className="table-wrap">
-            <table>
+      <Card className="gap-0 py-0">
+        {loading && users.length === 0 ? (
+          <div className="space-y-3 p-6">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-muted-foreground flex flex-col items-center gap-2 px-6 py-16 text-center">
+            <Users className="size-8 opacity-40" />
+            <p className="text-sm font-medium">No users found</p>
+            <p className="text-xs">Try a different search term.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
               <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Orgs</th>
-                  <th>Joined</th>
-                  <th>Actions</th>
+                <tr className="text-muted-foreground border-b text-xs tracking-wide uppercase">
+                  <th className="px-4 py-3 text-left font-medium">User</th>
+                  <th className="px-4 py-3 text-left font-medium">Organizations</th>
+                  <th className="px-4 py-3 text-left font-medium">Joined</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 && !loading && (
-                  <tr><td colSpan={5} style={{ color: "var(--color-muted)", textAlign: "center" }}>No users found</td></tr>
-                )}
                 {users.map((u) => (
-                  <tr key={u.userId}>
-                    <td style={{ fontWeight: 500 }}>{u.displayName || "—"}</td>
-                    <td>{u.primaryEmail || "—"}</td>
-                    <td><span className="badge badge-blue">{u.orgCount}</span></td>
-                    <td style={{ fontSize: ".8rem", color: "var(--color-muted)" }}>
+                  <tr key={u.userId} className="hover:bg-muted/50 border-b transition-colors last:border-0">
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{u.displayName || "—"}</p>
+                      <p className="text-muted-foreground text-xs">{u.primaryEmail || "—"}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="info">{u.orgCount} {u.orgCount === 1 ? "org" : "orgs"}</Badge>
+                    </td>
+                    <td className="text-muted-foreground px-4 py-3 text-xs">
                       {u.createdUtc ? new Date(u.createdUtc).toLocaleDateString() : "—"}
                     </td>
-                    <td>
-                      <button className="btn btn-secondary btn-sm" onClick={() => startAssign(u)}>
-                        Add to org
-                      </button>
+                    <td className="px-4 py-3 text-right">
+                      <Button variant="outline" size="sm" onClick={() => startAssign(u)}>
+                        <UserPlus className="size-3.5" /> Add to org
+                      </Button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        )}
+      </Card>
 
-        {/* Assign-to-org panel */}
-        {assign && (
-          <div className="card" style={{ marginTop: "1rem", maxWidth: 480 }}>
-            <div className="section-title">Add {assign.email} to an organization</div>
-            <div className="form-group">
-              <label>Organization</label>
-              <select
-                value={assign.orgId}
-                onChange={(e) => setAssign((a) => ({ ...a, orgId: e.target.value }))}
-              >
-                {orgs.map((o) => (
-                  <option key={o.OrganizationId} value={o.OrganizationId}>{o.Name} ({o.Code})</option>
-                ))}
-              </select>
+      {/* Assign-to-org dialog */}
+      <Dialog open={!!assign} onOpenChange={(open) => !open && setAssign(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add to organization</DialogTitle>
+            <DialogDescription>
+              Grant <span className="font-medium">{assign?.email}</span> a membership in one of your organizations.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-5">
+            <div className="grid gap-2">
+              <Label>Organization</Label>
+              <Select value={assign?.orgId} onValueChange={(v) => setAssign((a) => ({ ...a, orgId: v }))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select an organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgs.map((o) => (
+                    <SelectItem key={o.OrganizationId} value={o.OrganizationId}>
+                      {o.Name} ({o.Code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="form-group">
-              <label>Role</label>
-              <select
-                value={assign.roleCode}
-                onChange={(e) => setAssign((a) => ({ ...a, roleCode: e.target.value }))}
-              >
-                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: ".5rem" }}>
-              <button className="btn btn-primary" onClick={submitAssign}>Add member</button>
-              <button className="btn btn-secondary" onClick={() => setAssign(null)}>Cancel</button>
+            <div className="grid gap-2">
+              <Label>Role</Label>
+              <Select value={assign?.roleCode} onValueChange={(v) => setAssign((a) => ({ ...a, roleCode: v }))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        )}
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssign(null)}>Cancel</Button>
+            <Button onClick={submitAssign}>Add member</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

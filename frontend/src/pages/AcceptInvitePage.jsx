@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
-import { loginRequest } from "../authConfig";
-import { postApi } from "../apiClient";
+import { loginRequest } from "@/authConfig";
+import { postApi } from "@/apiClient";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ShieldCheck, ShieldAlert, Loader2 } from "lucide-react";
 
 export default function AcceptInvitePage() {
   const [searchParams] = useSearchParams();
@@ -45,8 +48,8 @@ export default function AcceptInvitePage() {
           code === "invitation_invalid_or_expired"
             ? "This invitation has expired or has already been used."
             : code === "identity_already_provisioned"
-            ? "Your account is already set up. Redirecting…"
-            : `Error: ${code}`
+              ? "Your account is already set up. Redirecting…"
+              : `Error: ${code}`
         );
         if (code === "identity_already_provisioned") {
           setTimeout(() => navigate("/"), 1500);
@@ -55,23 +58,50 @@ export default function AcceptInvitePage() {
   }, [isAuthenticated, token]);
 
   return (
-    <div className="auth-page">
-      <div className="auth-logo">SaaS SSO</div>
-      <div className="card" style={{ maxWidth: 400, textAlign: "center" }}>
-        {status === "idle" && <p>Preparing your invitation…</p>}
-        {status === "signing-in" && <><div className="spinner" style={{ margin: "0 auto 1rem" }} /><p>Redirecting to sign-in…</p></>}
-        {status === "accepting" && <><div className="spinner" style={{ margin: "0 auto 1rem" }} /><p>Accepting invitation…</p></>}
-        {status === "done" && (
-          <>
-            <div style={{ fontSize: "2rem", marginBottom: ".5rem" }}>✓</div>
-            <p style={{ fontWeight: 600 }}>You're in!</p>
-            <p style={{ color: "var(--color-muted)", fontSize: ".9rem", marginTop: ".3rem" }}>
-              Redirecting to your dashboard…
+    <div className="dot-grid flex min-h-screen items-center justify-center px-4 py-10">
+      <Card className="w-full max-w-sm items-center gap-6 py-10 text-center">
+        <div className="flex flex-col items-center gap-4">
+          {status === "error" ? (
+            <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+              <ShieldAlert className="size-6" />
+            </div>
+          ) : status === "done" ? (
+            <div className="flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <ShieldCheck className="size-6" />
+            </div>
+          ) : (
+            <div className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
+              <Loader2 className="size-6 animate-spin" />
+            </div>
+          )}
+
+          <div>
+            <p className="text-lg font-semibold tracking-tight">
+              {status === "idle" && "Preparing your invitation"}
+              {status === "signing-in" && "Redirecting to sign-in…"}
+              {status === "accepting" && "Accepting invitation…"}
+              {status === "done" && "You're in!"}
+              {status === "error" && "Couldn't accept invitation"}
             </p>
-          </>
+            <p className="text-muted-foreground mt-1.5 max-w-64 text-sm">
+              {status === "done"
+                ? "Your membership is active. Redirecting to your dashboard…"
+                : status === "error"
+                  ? message
+                  : "This only takes a moment."}
+            </p>
+          </div>
+        </div>
+
+        {status === "error" && (
+          <Alert variant="destructive" className="mx-6 text-left">
+            <ShieldAlert />
+            <AlertDescription>
+              Check the link and try again, or ask your administrator for a new invitation.
+            </AlertDescription>
+          </Alert>
         )}
-        {status === "error" && <div className="alert alert-error">{message}</div>}
-      </div>
+      </Card>
     </div>
   );
 }
