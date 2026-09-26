@@ -22,6 +22,15 @@ export function findPendingByOrganization(organizationId: string): Invitation[] 
   );
 }
 
+export function countPendingByOrganization(organizationId: string): number {
+  return (
+    queryOne<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM Invitations WHERE OrganizationId = ? AND Status = 'Pending' AND ExpiryUtc > datetime('now')",
+      organizationId
+    )?.n ?? 0
+  );
+}
+
 export function create(inv: {
   invitationId: string;
   organizationId: string;

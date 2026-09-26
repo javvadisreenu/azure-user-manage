@@ -68,9 +68,7 @@ export function assignRole(membershipRoleId: string, membershipId: string, roleC
   );
 }
 
-// Replace all of a membership's roles with the given set, atomically.
 export function replaceRoles(membershipId: string, roleCodes: string[]): void {
-  // Validate every role first so we fail before deleting anything
   for (const code of roleCodes) {
     const role = queryOne<{ RoleId: string }>(
       "SELECT RoleId FROM Roles WHERE RoleCode = ?",
@@ -86,8 +84,36 @@ export function replaceRoles(membershipId: string, roleCodes: string[]): void {
   });
 }
 
-export function listByOrganization(organizationId: string): MemberListRow[] {
-  return query<MemberListRow>(
+export interface MemberFilter {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export function listByOrganization(
+  organizationId: string,
+  filter: MemberFilter = {}
+): { rows: MemberListRow[]; total: number } {
+  const { search, page = 1, limit = 25 } = filter;
+
+  const conditions = ["m.OrganizationId = ?"];
+  const params: unknown[] = [organizationId];
+
+  if (search) {
+    conditions.push("(u.DisplayName LIKE ? OR u.PrimaryEmail LIKE ?)");
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
+  const where = "WHERE " + conditions.join(" AND ");
+  const total =
+    queryOne<{ n: number }>(
+      `SELECT COUNT(DISTINCT m.MembershipId) AS n
+       FROM Memberships m JOIN Users u ON u.UserId = m.UserId ${where}`,
+      ...params
+    )?.n ?? 0;
+
+  const offset = (page - 1) * limit;
+  const rows = query<MemberListRow>(
     `SELECT m.MembershipId, m.Status, m.CreatedUtc,
             u.UserId, u.DisplayName, u.PrimaryEmail,
             GROUP_CONCAT(r.RoleCode) AS Roles
@@ -95,9 +121,22 @@ export function listByOrganization(organizationId: string): MemberListRow[] {
      JOIN Users u ON u.UserId = m.UserId
      LEFT JOIN MembershipRoles mr ON mr.MembershipId = m.MembershipId
      LEFT JOIN Roles r ON r.RoleId = mr.RoleId
-     WHERE m.OrganizationId = ?
-     GROUP BY m.MembershipId`,
-    organizationId
+     ${where}
+     GROUP BY m.MembershipId
+     ORDER BY m.CreatedUtc DESC
+     LIMIT ? OFFSET ?`,
+    ...params, limit, offset
+  );
+
+  return { rows, total };
+}
+
+export function countActiveByOrganization(organizationId: string): number {
+  return (
+    queryOne<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM Memberships WHERE OrganizationId = ? AND Status = 'Active'",
+      organizationId
+    )?.n ?? 0
   );
 }
 
@@ -105,9 +144,6 @@ export function updateStatus(membershipId: string, status: string): void {
   execute("UPDATE Memberships SET Status = ? WHERE MembershipId = ?", status, membershipId);
 }
 
-// True once ANY membership on the platform carries the PlatformAdmin role.
-// Used by first-login auto-provisioning: the very first user bootstraps the
-// platform as PlatformAdmin; everyone after that does not.
 export function hasAnyPlatformAdmin(): boolean {
   const row = queryOne<{ n: number }>(
     `SELECT COUNT(*) AS n

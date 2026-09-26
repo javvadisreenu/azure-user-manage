@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "@/hooks/useApi";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,14 +16,17 @@ import {
   ShieldAlert,
   UserRound,
   Users,
+  Activity,
 } from "lucide-react";
 
 export default function Dashboard({ activeOrgId }) {
   const { get, loading, error } = useApi(activeOrgId);
   const [me, setMe] = useState(null);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     get("/api/me").then(setMe).catch(() => {});
+    get(`/api/organizations/${activeOrgId}/stats`).then(setStats).catch(() => {});
   }, [activeOrgId]);
 
   if (loading && !me) {
@@ -60,8 +63,8 @@ export default function Dashboard({ activeOrgId }) {
         description={`${me.tenant.organizationName} (${me.tenant.organizationCode})`}
       />
 
+      {/* Identity cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Signed in as */}
         <Card className="gap-4">
           <CardHeader className="flex-row items-center gap-3">
             <div className="bg-primary/8 text-primary ring-primary/15 flex size-9 items-center justify-center rounded-lg ring-1">
@@ -75,7 +78,6 @@ export default function Dashboard({ activeOrgId }) {
           </CardContent>
         </Card>
 
-        {/* Roles */}
         <Card className="gap-4">
           <CardHeader className="flex-row items-center gap-3">
             <div className="bg-primary/8 text-primary ring-primary/15 flex size-9 items-center justify-center rounded-lg ring-1">
@@ -96,7 +98,6 @@ export default function Dashboard({ activeOrgId }) {
           </CardContent>
         </Card>
 
-        {/* Organization */}
         <Card className="gap-4 sm:col-span-2 lg:col-span-1">
           <CardHeader className="flex-row items-center gap-3">
             <div className="bg-primary/8 text-primary ring-primary/15 flex size-9 items-center justify-center rounded-lg ring-1">
@@ -113,6 +114,37 @@ export default function Dashboard({ activeOrgId }) {
         </Card>
       </div>
 
+      {/* Stats tiles */}
+      {isTenantAdmin && stats && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold tracking-tight">Organization overview</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatTile
+              icon={Users}
+              label="Active members"
+              value={stats.memberCount}
+              color="text-sky-500"
+              bg="bg-sky-500/10"
+            />
+            <StatTile
+              icon={MailPlus}
+              label="Pending invitations"
+              value={stats.pendingInviteCount}
+              color="text-violet-500"
+              bg="bg-violet-500/10"
+            />
+            <StatTile
+              icon={Activity}
+              label="Events (last 7 days)"
+              value={stats.recentEventCount}
+              color="text-emerald-500"
+              bg="bg-emerald-500/10"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Quick actions */}
       {isTenantAdmin && (
         <div className="mt-8">
           <h2 className="mb-4 text-sm font-semibold tracking-tight">Quick actions</h2>
@@ -124,6 +156,22 @@ export default function Dashboard({ activeOrgId }) {
         </div>
       )}
     </div>
+  );
+}
+
+function StatTile({ icon: Icon, label, value, color, bg }) {
+  return (
+    <Card className="gap-3 py-5">
+      <CardContent className="flex items-center gap-4">
+        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${bg}`}>
+          <Icon className={`size-5 ${color}`} />
+        </div>
+        <div>
+          <p className="text-2xl font-bold tabular-nums">{value ?? "—"}</p>
+          <p className="text-muted-foreground text-xs">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

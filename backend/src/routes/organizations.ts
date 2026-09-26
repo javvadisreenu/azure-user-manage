@@ -4,14 +4,13 @@ import * as orgRepo from "../repositories/organizationRepository.js";
 import * as membershipRepo from "../repositories/membershipRepository.js";
 import * as userRepo from "../repositories/userRepository.js";
 import * as auditRepo from "../repositories/auditRepository.js";
+import * as invitationRepo from "../repositories/invitationRepository.js";
 import { requireRole } from "../middleware/tenantContext.js";
 import { ASSIGNABLE_ROLES } from "../types.js";
 import type { Request, Response } from "express";
 
 const router = Router();
 
-// Guard: the actor may only touch the org their session is scoped to,
-// unless they are a PlatformAdmin (who can touch any org).
 function assertOrgAccess(req: Request, res: Response): boolean {
   const tenant = req.tenant!;
   if (tenant.organizationId !== req.params.orgId && !tenant.roles.includes("PlatformAdmin")) {
@@ -21,14 +20,12 @@ function assertOrgAccess(req: Request, res: Response): boolean {
   return true;
 }
 
-// GET /api/organizations — PlatformAdmin only: list all organizations
+// GET /api/organizations — PlatformAdmin only
 router.get("/", requireRole("PlatformAdmin"), (req, res) => {
   res.json(orgRepo.list());
 });
 
-// POST /api/organizations — PlatformAdmin only: create an organization.
-// The creator is automatically added as a TenantAdmin member so they can
-// switch into and manage the new org right away.
+// POST /api/organizations — PlatformAdmin only
 router.post("/", requireRole("PlatformAdmin"), (req, res) => {
   const { name, code } = (req.body ?? {}) as { name?: string; code?: string };
   if (!name || !code) {
@@ -44,7 +41,6 @@ router.post("/", requireRole("PlatformAdmin"), (req, res) => {
   const organizationId = uuidv4();
   orgRepo.create({ organizationId, code, name, status: "Active" });
 
-  // Add the creator as a TenantAdmin of the new org
   const membershipId = uuidv4();
   membershipRepo.create({
     membershipId,
@@ -66,7 +62,7 @@ router.post("/", requireRole("PlatformAdmin"), (req, res) => {
   res.status(201).json({ organizationId, membershipId });
 });
 
-// GET /api/organizations/:orgId — TenantAdmin or member of that org
+// GET /api/organizations/:orgId
 router.get("/:orgId", (req, res) => {
   if (!assertOrgAccess(req, res)) return;
   const org = orgRepo.findById(req.params.orgId);
@@ -77,7 +73,18 @@ router.get("/:orgId", (req, res) => {
   res.json(org);
 });
 
-// PATCH /api/organizations/:orgId — rename or change status
+// GET /api/organizations/:orgId/stats — dashboard summary
+router.get("/:orgId/stats", (req, res) => {
+  if (!assertOrgAccess(req, res)) return;
+  const orgId = req.params.orgId;
+  res.json({
+    memberCount: membershipRepo.countActiveByOrganization(orgId),
+    pendingInviteCount: invitationRepo.countPendingByOrganization(orgId),
+    recentEventCount: auditRepo.countRecentByOrganization(orgId),
+  });
+});
+
+// PATCH /api/organizations/:orgId
 router.patch("/:orgId", requireRole("TenantAdmin"), (req, res) => {
   if (!assertOrgAccess(req, res)) return;
 
@@ -106,15 +113,17 @@ router.patch("/:orgId", requireRole("TenantAdmin"), (req, res) => {
   res.json({ ok: true });
 });
 
-// GET /api/organizations/:orgId/members
+// GET /api/organizations/:orgId/members — paginated, searchable
 router.get("/:orgId/members", requireRole("TenantAdmin", "Manager"), (req, res) => {
   if (!assertOrgAccess(req, res)) return;
-  const members = membershipRepo.listByOrganization(req.params.orgId);
-  res.json(members);
+  const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "25"), 10) || 25));
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : undefined;
+  const { rows, total } = membershipRepo.listByOrganization(req.params.orgId, { page, limit, search });
+  res.json({ members: rows, total, page, limit });
 });
 
-// POST /api/organizations/:orgId/members — add an EXISTING user to this org
-// Body: { userId, roleCode }
+// POST /api/organizations/:orgId/members
 router.post("/:orgId/members", requireRole("TenantAdmin"), (req, res) => {
   if (!assertOrgAccess(req, res)) return;
 
@@ -125,8 +134,6 @@ router.post("/:orgId/members", requireRole("TenantAdmin"), (req, res) => {
   }
 
   const role = roleCode || "User";
-  // ASSIGNABLE_ROLES excludes PlatformAdmin — tenant endpoints must never
-  // be able to grant platform-wide administration.
   if (!ASSIGNABLE_ROLES.includes(role)) {
     res.status(400).json({ error: "invalid_role" });
     return;
@@ -165,8 +172,7 @@ router.post("/:orgId/members", requireRole("TenantAdmin"), (req, res) => {
   res.status(201).json({ membershipId });
 });
 
-// PUT /api/organizations/:orgId/members/:membershipId/roles — replace a member's roles
-// Body: { roles: ["TenantAdmin", "Manager"] }
+// PUT /api/organizations/:orgId/members/:membershipId/roles
 router.put("/:orgId/members/:membershipId/roles", requireRole("TenantAdmin"), (req, res) => {
   if (!assertOrgAccess(req, res)) return;
 
@@ -175,8 +181,6 @@ router.put("/:orgId/members/:membershipId/roles", requireRole("TenantAdmin"), (r
     res.status(400).json({ error: "roles_required" });
     return;
   }
-  // PlatformAdmin is intentionally not assignable from a tenant endpoint —
-  // otherwise a TenantAdmin could elevate themselves platform-wide.
   const invalid = roles.filter((r) => !ASSIGNABLE_ROLES.includes(r));
   if (invalid.length > 0) {
     res.status(400).json({ error: "invalid_role", detail: invalid });
@@ -203,7 +207,7 @@ router.put("/:orgId/members/:membershipId/roles", requireRole("TenantAdmin"), (r
   res.json({ ok: true });
 });
 
-// PATCH /api/organizations/:orgId/members/:membershipId — update membership status
+// PATCH /api/organizations/:orgId/members/:membershipId
 router.patch("/:orgId/members/:membershipId", requireRole("TenantAdmin"), (req, res) => {
   if (!assertOrgAccess(req, res)) return;
 
@@ -228,11 +232,29 @@ router.patch("/:orgId/members/:membershipId", requireRole("TenantAdmin"), (req, 
   res.json({ ok: true });
 });
 
-// GET /api/organizations/:orgId/audit
+// GET /api/organizations/:orgId/audit — paginated, filterable
 router.get("/:orgId/audit", requireRole("TenantAdmin"), (req, res) => {
   if (!assertOrgAccess(req, res)) return;
-  const events = auditRepo.listByOrganization(req.params.orgId);
-  res.json(events);
+
+  const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit ?? "25"), 10) || 25));
+  const eventType = typeof req.query.eventType === "string" ? req.query.eventType || undefined : undefined;
+  const actorUserId = typeof req.query.actorUserId === "string" ? req.query.actorUserId || undefined : undefined;
+  const from = typeof req.query.from === "string" ? req.query.from || undefined : undefined;
+  const to = typeof req.query.to === "string" ? req.query.to || undefined : undefined;
+
+  const { rows, total } = auditRepo.listByOrganization(req.params.orgId, {
+    eventType,
+    actorUserId,
+    from,
+    to,
+    page,
+    limit,
+  });
+
+  const eventTypes = auditRepo.distinctEventTypes(req.params.orgId);
+
+  res.json({ events: rows, total, page, limit, eventTypes });
 });
 
 export default router;
